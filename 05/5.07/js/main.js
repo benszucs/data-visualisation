@@ -81,7 +81,7 @@ function update(data) {
 
     // X Axis
     var xAxisCall = d3.axisBottom(x);
-    xAxisGroup.transition(t).call(xAxisCall);;
+    xAxisGroup.transition(t).call(xAxisCall);
 
     // Y Axis
     var yAxisCall = d3.axisLeft(y)

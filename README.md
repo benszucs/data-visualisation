@@ -238,10 +238,118 @@ d3.interval(() => {
 }, 500); // Runs every 500ms
 
 // Create a new Loop
-var myInterval = setIntervaul(() => {
+var myInterval = setInterval(() => {
     // Code goes here
 }, 500);
 
 // Stop the loop
 clearInterval(myInterval);
 ```
+
+Break out the parts that need updating into a seperate update() function.
+What needs updating on a dynamic graph?
+- Labels
+- Axis
+- Data elements (rects, circles, etc.)
+(see 5.03 for full example)
+```javascript
+// Leave static elements outside the updated call 
+// i.e. margin, width, height, svg, groups, scale, label format
+
+// Move all dynamic elements to the update function 
+// i.e. scale domain, axis call, data elements
+
+d3.json("data/revenues.json").then(function(data){
+    d3.interval(function(){
+        update(data)
+    }, 1000);
+
+    // Run the vis for the first time so update is called on initial load
+    update(data);
+});
+
+function update(data) {
+    x.domain(data.map(function(d){ return d.month }))
+    y.domain([0, d3.max(data, function(d) { return d.revenue })])
+
+    // X Axis
+    var xAxisCall = d3.axisBottom(x);
+    xAxisGroup.call(xAxisCall);
+
+
+    // Y Axis
+    var yAxisCall = d3.axisLeft(y)
+        .tickFormat(function(d){ return "$" + d; });
+    yAxisGroup.call(yAxisCall);
+
+    // Data elements here.....
+}
+```
+
+The D3 update pattern
+```javascript
+// JOIN new data with old elements.
+// Join new data with old elements, if any.
+var rects = g.selectAll("rect")
+    .data(data)
+
+// EXIT old elements not present in new data.
+// Remove old elements as needed.
+rects.exit().remove()
+
+// UPDATE ild elements present in new data.
+// Update oldelements as needed.
+rects
+    .attr("y", function(d){ return y(d.revenue); })
+    .attr("x", function(d){ return x(d.month) })
+    .attr("height", function(d){ return height - y(d.revenue); })
+    .attr("width", x.bandwidth)
+
+// ENTER new elements present in new data.
+// Create new elements as needed.        
+rects.enter()
+    .append("rect")
+        .attr("y", function(d){ return y(d.revenue); })
+        .attr("x", function(d){ return x(d.month) })
+        .attr("height", function(d){ return height - y(d.revenue); })
+        .attr("width", x.bandwidth)
+        .attr("fill", "grey");
+```
+
+Merge Pattern
+```javascript
+// ...
+// ENTER new elements present in new data...
+rects.enter()
+    .append("rect")
+        .attr("fill", "grey")
+        .attr("y", y(0))
+        .attr("height", 0)
+        .attr("x", function(d){ return x(d.month) })
+        .attr("width", x.bandwidth)
+        // AND UPDATE old elements present in new data.
+        .merge(rects)
+        .transition(t)
+            .attr("x", function(d){ return x(d.month) })
+            .attr("width", x.bandwidth)
+            .attr("y", function(d){ return y(d[value]); })
+            .attr("height", function(d){ return height - y(d[value]); });
+```
+
+D3 Transitions
+```javascript
+var t = d3.transition().duration(500);
+
+rects.enter().append('rect')
+    .attr('height', (d) => { return height - y(d.revenue) })
+    .attr('x', (d) => { return x(d.month) })
+    .attr('width', x.bandwidth)
+    .attr('fill', 'grey')
+    .attr('y', y(0))
+    .attr('fill-opacity', 0)
+    // anything after transition will be transitioned as per the above declaration
+    .transition(t)
+        .attr('y', (d) => { return y(d[value]) })
+        .attr('fill-opacity', 1);
+```
+
